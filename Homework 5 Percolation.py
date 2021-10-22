@@ -5,19 +5,21 @@ import random
 class Node:
 
     def __init__(self, coords):
-        self.parent = None
+        self.parent = self
         self.coords = coords
         self.rank = 1
 
-    def find(self):
-        if self.parent is None:
-            return self
-        else:
-            return self.parent.find()
+    def __repr__(self):
+        return f"{self.coords}"
+
+    def find(self, node):
+        if self.parent == node:
+            return node
+        return self.parent.find(self.parent)
 
     def union(self, node):
-        root1 = self.find()
-        root2 = node.find()
+        root1 = self.find(self)
+        root2 = node.find(node)
         if root1.rank > root2.rank:
             root2.parent = root1
             root1.rank += root2.rank
@@ -27,51 +29,121 @@ class Node:
 
 
 def make_grid(grid):
-    top = []
-    for i in range(len(grid)):
-        top.append(f"{i}")
-    print(f"Top {top}")
     i = 0
     for row in grid:
         print(f"{i} : {row}")
         i += 1
 
 
-def neighbor_check(grid, x, y, coord):
-    largest_rank = coord[(x, y)]
+def create_adj(adj_map, x, y, coord, direction):
+    node = coord[(x, y)]
+    variation = 1
+    if node not in adj_map:
+        adj_map[node] = []
+    if direction == "north" or direction == "west":
+        variation = -1
+    if direction == "north" or direction == "south":
+        variable = x + variation
+        adj_map[node].append(coord[variable, y])
+        if node not in adj_map[coord[variable, y]]:
+            adj_map[coord[variable, y]].append(node)
+    else:
+        variable = y + variation
+        adj_map[node].append(coord[x, variable])
+        if node not in adj_map[coord[x, variable]]:
+            adj_map[coord[x, variable]].append(node)
+    return adj_map
+
+
+def neighbor_check(grid, x, y, coord, adj_map):
+    node = coord[(x, y)]
+    adj_map[node] = []
     if x - 1 >= 0:
         if grid[x - 1][y] == "O":
-            if largest_rank < coord[(x-1, y)].rank:
-                largest_rank = coord[(x - 1, y)]
+            node.union(coord[(x-1, y)])
+            adj_map = create_adj(adj_map, x,y, coord, "north")
     if x + 1 < len(grid):
         if grid[x + 1][y] == "O":
-            if largest_rank < coord[(x + 1, y)].rank:
-                largest_rank = coord[(x + 1, y)]
+            node.union(coord[(x + 1, y)])
+            adj_map = create_adj(adj_map, x, y, coord, "south")
     if y - 1 >= 0:
         if grid[x][y - 1] == "O":
-            if largest_rank < coord[(x, y - 1)].rank:
-                largest_rank = coord[(x, y - 1)]
+            node.union(coord[(x, y - 1)])
+            adj_map = create_adj(adj_map, x, y, coord, "west")
     if y + 1 < len(grid):
         if grid[x][y + 1] == "O":
-            if largest_rank < coord[(x, y + 1)].rank:
-                largest_rank = coord[(x, y + 1)]
-    return largest_rank
+            node.union(coord[(x, y + 1)])
+            adj_map = create_adj(adj_map, x,y, coord, "east")
+    return coord, adj_map
+
+
+def percolation_check(start, end):
+    for point in start:
+        for vertex in end:
+            if start[point].find(point) == end[vertex].find(vertex):
+                return True, end[vertex], start[point]
+    return False, 0, 0
+
+
+def bfs(adj_map, start, end, grid):
+    done = False
+    tmpqueue = []
+    parents = {}
+    tmpqueue.append(start)
+    parents[start] = None
+    while len(tmpqueue) > 0:
+        current = tmpqueue.pop(0)
+        for nodes in adj_map[current]:
+            if nodes not in parents:
+                parents[nodes] = current
+                tmpqueue.append(nodes)
+                if nodes == end:
+                    done = True
+                    break
+    if done:
+        current = end
+        order = []
+        while current != start:
+            x, y = current.coords
+            grid[x][y] = "X"
+            order.append(current)
+            current = parents[current]
+        order.append(current)
+        grid[x][y] = "X"
+    return order
 
 
 def main():
     coord = {}
-    rows, cols = (5, 5)
+    adj_map = {}
+    start = {}
+    end = {}
+    percolated = False
+    rows, cols = (500, 500)
     grid = [["C"]*cols for i in range(rows)]
-    print(len(grid))
-    for i in range(20):
-        x = random.randint(0, 4)
-        y = random.randint(0, 4)
+    i = 0
+    while not percolated:
+        x = random.randint(0, rows - 1)
+        y = random.randint(0, rows - 1)
+        while (x, y) in coord:
+            x = random.randint(0, rows - 1)
+            y = random.randint(0, rows - 1)
         grid[x][y] = "O"
         tmp = Node((x, y))
         coord[(x, y)] = tmp
-        neighbors = neighbor_check(grid, x, y, coord)
-        make_grid(grid)
-        print("-----------------------")
+        if x == 0:
+            start[(x, y)] = tmp
+        if x == (rows - 1):
+            end[(x, y)] = tmp
+        coord, adj_map = neighbor_check(grid, x, y, coord, adj_map)
+        if i > (rows * cols * .592):
+            percolated, start_point, end_point = percolation_check(start, end)
+        i += 1
+
+    stuff = bfs(adj_map, start_point, end_point, grid)
+    make_grid(grid)
+
+
 
 
 if __name__ == '__main__':
