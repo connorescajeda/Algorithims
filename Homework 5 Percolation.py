@@ -30,9 +30,11 @@ class Node:
 
 def make_grid(grid):
     i = 0
+    str = ""
     for row in grid:
-        print(f"{i} : {row}")
+        str += f"{i} : {row}\n"
         i += 1
+    return str
 
 
 def create_adj(adj_map, x, y, coord, direction):
@@ -78,10 +80,13 @@ def neighbor_check(grid, x, y, coord, adj_map):
 
 
 def percolation_check(start, end):
+    perc_check = {}
     for point in start:
-        for vertex in end:
-            if start[point].find(point) == end[vertex].find(vertex):
-                return True, end[vertex], start[point]
+        if start[point].find(point) not in perc_check:
+            perc_check[start[point].find(point)] = start[point]
+    for point in end:
+        if end[point].find(point) in perc_check:
+            return True, end[point], perc_check[end[point].find(point)]
     return False, 0, 0
 
 
@@ -113,6 +118,12 @@ def bfs(adj_map, start, end, grid):
     return order
 
 
+def output(path, text):
+    f = open(f"Percolation_output1", "x")
+    f.write(path)
+    f.write(text)
+
+
 def main():
     coord = {}
     adj_map = {}
@@ -131,18 +142,21 @@ def main():
         grid[x][y] = "O"
         tmp = Node((x, y))
         coord[(x, y)] = tmp
+        coord, adj_map = neighbor_check(grid, x, y, coord, adj_map)
         if x == 0:
-            start[(x, y)] = tmp
+            if tmp.find(tmp) not in start:
+                start[(x, y)] = tmp
         if x == (rows - 1):
             end[(x, y)] = tmp
-        coord, adj_map = neighbor_check(grid, x, y, coord, adj_map)
         if i > (rows * cols * .592):
             percolated, start_point, end_point = percolation_check(start, end)
         i += 1
 
-    stuff = bfs(adj_map, start_point, end_point, grid)
-    make_grid(grid)
-
+    order = bfs(adj_map, start_point, end_point, grid)
+    length = len(order)
+    path = make_grid(grid)
+    text = f"Percolation achieved with {i} cells opened ({i / (rows*cols)}%)\n Shortest path length = {length}"
+    output(path, text)
 
 
 
